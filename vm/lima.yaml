@@ -1,0 +1,21 @@
+base:
+  - template:ubuntu-24.04
+vmType: vz
+cpus: 2
+memory: 2GiB
+disk: 10GiB
+mounts: []
+containerd:
+  system: false
+  user: false
+ssh:
+  loadDotSSHPubKeys: false
+portForwards:
+  - guestPortRange: [1, 65535]
+    ignore: true
+provision:
+  - mode: system
+    script: |
+      #!/bin/sh
+      set -eu
+      printf 'VM_LAB_HOST_KEY %s\n' "$(cut -d ' ' -f 1,2 /etc/ssh/ssh_host_ed25519_key.pub)" > /dev/console
