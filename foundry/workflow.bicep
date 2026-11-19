@@ -1,4 +1,5 @@
 param projectPrincipalId string
+param vmName string = 'vm-agent-skill-lab'
 param location string = resourceGroup().location
 
 var audience = environment().resourceManager
@@ -14,7 +15,7 @@ var oauthClaims = [
 ]
 
 resource vm 'Microsoft.Compute/virtualMachines@2025-04-01' existing = {
-  name: 'vm-agent-skill-lab'
+  name: vmName
 }
 
 resource workflow 'Microsoft.Logic/workflows@2019-05-01' = {
