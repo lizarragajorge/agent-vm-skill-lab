@@ -12,6 +12,10 @@ set up another copy [through the portals](#set-up-through-the-portals) or
 [from this repo](#deploy-from-this-repo). The Foundry agent does not load the
 local Copilot skill; its equivalent is the `identify_vm` OpenAPI tool.
 
+Already have a VM reachable over SSH? Follow the
+[existing VM walkthrough](EXISTING-VM.md) to create the agent and skill without
+deploying infrastructure.
+
 ## Test in the Foundry Playground
 
 1. Sign in to [Microsoft Foundry](https://ai.azure.com/) in the lab tenant and
