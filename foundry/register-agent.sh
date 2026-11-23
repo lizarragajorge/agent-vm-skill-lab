@@ -11,18 +11,8 @@ workflow=$(jq -er '.workflowId.value' "$state/foundry-workflow.json")
 subscription=$(printf '%s' "$project" | cut -d / -f 3)
 connection="$project/connections/vm-lab-identify"
 
-callback=$(az rest --subscription "$subscription" --method post \
-  --uri "https://management.azure.com$workflow/triggers/identify/listCallbackUrl?api-version=2016-06-01" \
-  --query value -o tsv --only-show-errors)
-if [[ "$callback" != 'https://'*'/triggers/identify/paths/invoke?api-version='* || "$callback" == *'&'* ]]; then
-  printf '%s\n' 'Expected a Logic Apps callback URL with SAS disabled.' >&2
-  exit 2
-fi
-api_version=${callback##*=}
-route=${callback%%\?*}
-authority=$(printf '%s' "$route" | cut -d / -f 1-3)
-path=${route#"$authority"}
-host=${authority%:443}
+bash foundry/generate-openapi.sh "$workflow" > "$state/vm-lab-openapi.json"
+host=$(jq -er '.servers[0].url' "$state/vm-lab-openapi.json")
 
 jq -n --arg target "$host" '{
   properties: {category:"OpenAPI", authType:"ProjectManagedIdentity",
@@ -32,7 +22,7 @@ az rest --subscription "$subscription" --method put \
   --uri "https://management.azure.com$connection?api-version=2025-06-01" \
   --body @"$state/connection.json" --output none --only-show-errors
 
-jq -n --arg host "$host" --arg path "$path" --arg api_version "$api_version" \
+jq -n --slurpfile spec "$state/vm-lab-openapi.json" \
   --arg connection "$connection" --arg model "$model" '{
   name:"vm-lab", description:"Run a fixed diagnostic on the private Azure lab VM.",
   definition:{kind:"prompt", model:$model,
@@ -40,14 +30,7 @@ jq -n --arg host "$host" --arg path "$path" --arg api_version "$api_version" \
     tools:[{type:"openapi",openapi:{name:"vm-lab-identify",
       description:"Run the fixed OS and hostname diagnostic on the private VM.",
       auth:{type:"project_connection",security_scheme:{project_connection_id:$connection}},
-      spec:{openapi:"3.0.3",info:{title:"VM Lab Identify",version:"1.0.0"},
-        servers:[{url:$host}],
-        paths:{($path):{post:{operationId:"identify_vm",description:"Identify the private lab VM.",
-          parameters:[{name:"api-version",in:"query",required:true,schema:{type:"string",enum:[$api_version],default:$api_version}}],
-          requestBody:{required:true,content:{"application/json":{schema:{type:"object",additionalProperties:false}}}},
-          responses:{"200":{description:"Azure VM Run Command result",content:{"application/json":{schema:{type:"object"}}}},"502":{description:"The VM diagnostic did not complete."}}
-        }}}
-      }
+      spec:$spec[0]
     }}]
   }
 }' > "$state/agent-definition.json"
